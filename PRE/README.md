@@ -31,6 +31,31 @@ Place Lua source files in `scripts/` next to the scene JSON. Assign `scripts/<na
 - `pre.key_down("a")` accepts lowercase letters, `left`, `right`, `up`, `down`, and `space`. Keyboard state is released when the viewport loses focus.
 - Each entity has its own Lua state with the math library and `pre` API. Scripts have source, memory, and instruction limits. Diagnostics identify the entity and file when a script stops on error.
 
+### Gameplay-first Lua API (v0.7.0 development slice)
+
+This is a **scripted game runtime**, not only a drawing canvas. Open `scenes/gameplay_demo.json` or run:
+```powershell
+.\pre_editor.exe --scene scenes/gameplay_demo.json
+```
+Press Play, use WASD, and press Space to move the spawned marker.
+
+Supported gameplay APIs (scripts run in isolated Play/Stop scenes):
+
+| API | Behavior |
+| --- | --- |
+| `pre.position()`, `pre.set_position(x,y,z)` | Read/write the script owner's position |
+| `pre.key_down("space")`, `pre.key_pressed("space")` | Key state and rising edge |
+| `pre.action_down("move_left")` etc. | Built-in WASD/jump action aliases |
+| `pre.entity_exists(id)` | Check an entity ID |
+| `pre.entity_position(id)` | Read coordinates, or nil if absent |
+| `pre.spawn(id,type,x,y,z)` | Create a data-only entity at callback boundary |
+| `pre.set_entity_position(id,x,y,z)` | Change another entity's position |
+| `pre.destroy(id)` | Remove an entity after callback processing |
+
+`spawn`, `destroy`, and cross-entity moves are **deferred until scripts complete their callbacks**; spawned entities do not automatically run Lua scripts. These calls only modify the Play snapshot, never the saved scene. Runtime supports an initial 4,096-entity safety cap. IDs are limited to 1-96 ASCII bytes using letters, digits, underscore and hyphen.
+
+**Not yet supported:** custom input bindings, arbitrary components, physics, collision events, script attachment to spawned entities, a general-purpose game event bus, scene switching, visual scripting, or standalone game export. These are future Gameplay milestones.
+
 ### Language and Lua preview
 
 - **Language / 语言** switches between English and Simplified Chinese. Edit the source catalogs in `locales/` and run the build to copy them into the release directory. Restart PRE to read the updated catalogs. Missing Chinese entries use the English value.
