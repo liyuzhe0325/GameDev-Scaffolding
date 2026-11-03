@@ -88,7 +88,7 @@ if(WIN32 AND TARGET SDL3::SDL3-shared)
       "$<TARGET_FILE:SDL3::SDL3-shared>" "$<TARGET_FILE_DIR:pre_editor>")
 endif()
 # The editable script is seeded only if it doesn't exist in the output folder.
-foreach(asset IN ITEMS runtime_demo.json scripts/oscillate.lua scripts/keyboard.lua)
+foreach(asset IN ITEMS runtime_demo.json gameplay_demo.json scripts/oscillate.lua scripts/keyboard.lua scripts/gameplay.lua)
   add_custom_command(TARGET pre_editor POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:pre_editor>/scenes/scripts"
     COMMAND ${CMAKE_COMMAND}
