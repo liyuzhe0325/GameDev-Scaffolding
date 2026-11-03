@@ -54,10 +54,19 @@ struct SceneRuntime::Script {
     std::unique_ptr<lua_State, decltype(&lua_close)> state{
         lua_newstate(allocate, &used, luaL_makeseed(nullptr)), lua_close};
     std::size_t entity_index = 0;
+    std::string entity_id;
     std::string description;
     RuntimeInput input;
     std::array<double, 3> position{};
     bool position_changed = false;
+    SceneRuntime* runtime = nullptr;
+    struct WorldEdit {
+        enum class Kind { spawn, destroy, move } kind;
+        std::string id;
+        std::string type;
+        std::array<double, 3> position{};
+    };
+    std::vector<WorldEdit> pending;
 
     static Script& self(lua_State* lua) {
         return **static_cast<Script**>(lua_getextraspace(lua));
@@ -91,6 +100,144 @@ struct SceneRuntime::Script {
         return 1;
     }
 
+
+    static std::string checked_id(lua_State* lua, int arg) {
+        std::size_t length = 0;
+        const char* text = luaL_checklstring(lua, arg, &length);
+        if (!length || length > 96) luaL_argerror(lua, arg, "entity id must contain 1-96 bytes");
+        for (std::size_t i = 0; i < length; ++i) {
+            const unsigned char c = static_cast<unsigned char>(text[i]);
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                  (c >= '0' && c <= '9') || c == '_' || c == '-'))
+                luaL_argerror(lua, arg, "invalid entity id");
+        }
+        return std::string(text, length);
+    }
+
+    static std::array<double, 3> checked_vec3(lua_State* lua, int start) {
+        std::array<double, 3> result{};
+        for (int i = 0; i < 3; ++i) {
+            result[i] = luaL_checknumber(lua, start + i);
+            if (!std::isfinite(result[i]) || std::abs(result[i]) > std::numeric_limits<float>::max())
+                luaL_argerror(lua, start + i, "expected finite coordinate");
+        }
+        return result;
+    }
+
+    static int entity_exists(lua_State* lua) {
+        const auto id = checked_id(lua, 1);
+        bool present = self(lua).runtime->scene_->find_entity(id).has_value();
+        for (const auto& edit : self(lua).pending) {
+            if (edit.id == id && edit.kind == WorldEdit::Kind::spawn) present = true;
+            if (edit.id == id && edit.kind == WorldEdit::Kind::destroy) present = false;
+        }
+        lua_pushboolean(lua, present);
+        return 1;
+    }
+
+    static int entity_position(lua_State* lua) {
+        const auto id = checked_id(lua, 1);
+        const auto& script = self(lua);
+        const auto index = script.runtime->scene_->find_entity(id);
+        if (!index) { lua_pushnil(lua); return 1; }
+        auto pos = script.runtime->scene_->data["entities"][*index]["position"].get<std::array<double, 3>>();
+        if (id == script.entity_id && script.position_changed) pos = script.position;
+        for (const auto& edit : script.pending) {
+            if (edit.id == id && edit.kind == WorldEdit::Kind::move) pos = edit.position;
+            if (edit.id == id && edit.kind == WorldEdit::Kind::destroy) {
+                lua_pushnil(lua);
+                return 1;
+            }
+        }
+        for (double component : pos) lua_pushnumber(lua, component);
+        return 3;
+    }
+
+    static int spawn(lua_State* lua) {
+        auto& script = self(lua);
+        const auto id = checked_id(lua, 1);
+        std::size_t length = 0;
+        const char* raw = luaL_checklstring(lua, 2, &length);
+        const std::string type(raw, length);
+        if (type != "sprite" && type != "light" && type != "occluder" &&
+            type != "mesh" && type != "effect" && type != "camera")
+            return luaL_argerror(lua, 2, "unsupported entity type");
+        if (script.runtime->scene_->data["entities"].size() + script.pending.size() >= 4096)
+            return luaL_error(lua, "runtime entity limit exceeded");
+        if (script.runtime->scene_->find_entity(id))
+            return luaL_error(lua, "entity id already exists");
+        for (const auto& edit : script.pending)
+            if (edit.id == id) return luaL_error(lua, "id already reserved this callback");
+        script.pending.push_back({WorldEdit::Kind::spawn, id, type, checked_vec3(lua, 3)});
+        lua_pushstring(lua, id.c_str());
+        return 1;
+    }
+
+    static int destroy(lua_State* lua) {
+        auto& script = self(lua);
+        const auto id = checked_id(lua, 1);
+        const bool found = script.runtime->scene_->find_entity(id).has_value();
+        if (found) script.pending.push_back({WorldEdit::Kind::destroy, id, {}, {}});
+        lua_pushboolean(lua, found);
+        return 1;
+    }
+
+    static int set_entity_position(lua_State* lua) {
+        auto& script = self(lua);
+        const auto id = checked_id(lua, 1);
+        const bool found = script.runtime->scene_->find_entity(id).has_value();
+        if (found) script.pending.push_back({WorldEdit::Kind::move, id, {}, checked_vec3(lua, 2)});
+        lua_pushboolean(lua, found);
+        return 1;
+    }
+
+    static int action_down(lua_State* lua) {
+        std::size_t length = 0;
+        const char* raw = luaL_checklstring(lua, 1, &length);
+        const std::string_view action(raw, length);
+        const std::string_view key = action == "move_left" ? "a" :
+            action == "move_right" ? "d" : action == "move_up" ? "w" :
+            action == "move_down" ? "s" : action == "jump" ? "space" : "";
+        if (key.empty()) return luaL_argerror(lua, 1, "unknown action");
+        const auto it = std::find(RuntimeInput::keys.begin(), RuntimeInput::keys.end(), key);
+        lua_pushboolean(lua, self(lua).input.down[it - RuntimeInput::keys.begin()]);
+        return 1;
+    }
+
+    static int key_pressed(lua_State* lua) {
+        std::size_t length = 0;
+        const char* raw = luaL_checklstring(lua, 1, &length);
+        const auto it = std::find(RuntimeInput::keys.begin(), RuntimeInput::keys.end(),
+                                  std::string_view(raw, length));
+        if (it == RuntimeInput::keys.end()) return luaL_argerror(lua, 1, "unknown key");
+        const auto index = it - RuntimeInput::keys.begin();
+        const auto& script = self(lua);
+        lua_pushboolean(lua, script.input.down[index] && !script.runtime->previous_input_.down[index]);
+        return 1;
+    }
+
+    void apply_pending() {
+        if (!runtime || !runtime->scene_) { pending.clear(); return; }
+        auto& entities = runtime->scene_->data["entities"];
+        for (const auto& edit : pending) {
+            const auto index = runtime->scene_->find_entity(edit.id);
+            switch (edit.kind) {
+            case WorldEdit::Kind::spawn:
+                if (!index && entities.size() < 4096)
+                    entities.push_back({{"id", edit.id}, {"name", edit.id},
+                                        {"type", edit.type}, {"position", edit.position}});
+                break;
+            case WorldEdit::Kind::move:
+                if (index) entities[*index]["position"] = edit.position;
+                break;
+            case WorldEdit::Kind::destroy:
+                if (index) entities.erase(entities.begin() + static_cast<std::ptrdiff_t>(*index));
+                break;
+            }
+        }
+        pending.clear();
+    }
+
     void install_api() {
         auto* lua = state.get();
         *static_cast<Script**>(lua_getextraspace(lua)) = this;
@@ -98,7 +245,11 @@ struct SceneRuntime::Script {
         lua_pop(lua, 1);
         static const luaL_Reg api[] = {
             {"position", read_position}, {"set_position", set_position},
-            {"key_down", key_down}, {nullptr, nullptr}
+            {"key_down", key_down}, {"key_pressed", key_pressed},
+            {"action_down", action_down}, {"entity_exists", entity_exists},
+            {"entity_position", entity_position}, {"spawn", spawn},
+            {"destroy", destroy}, {"set_entity_position", set_entity_position},
+            {nullptr, nullptr}
         };
         luaL_newlib(lua, api);
         lua_setglobal(lua, "pre");
@@ -115,12 +266,15 @@ struct SceneRuntime::Script {
     }
 
     bool call(const char* callback, float seconds) {
+        pending.clear();
         auto* lua = state.get();
         lua_sethook(lua, instruction_limit, LUA_MASKCOUNT, 50'000);
         lua_pushcfunction(lua, dispatch);
         lua_pushlightuserdata(lua, const_cast<char*>(callback));
         lua_pushnumber(lua, seconds);
-        return lua_pcall(lua, 2, 0, 0) == LUA_OK;
+        const bool ok = lua_pcall(lua, 2, 0, 0) == LUA_OK;
+        if (!ok) pending.clear();
+        return ok;
     }
 
     void commit(nlohmann::json& entity) {
@@ -150,6 +304,8 @@ void SceneRuntime::play(const SceneDocument& source) {
         const auto& ref = entity["script"].get_ref<const std::string&>();
         auto script = std::make_unique<Script>();
         script->entity_index = index;
+        script->entity_id = entity["id"].get<std::string>();
+        script->runtime = this;
         script->description = entity["id"].get<std::string>() + " [" + ref + "]";
         script->position = entity["position"].get<std::array<double, 3>>();
         if (!script->state) {
@@ -175,12 +331,15 @@ void SceneRuntime::play(const SceneDocument& source) {
         script->commit(entity);
         scripts_.push_back(std::move(script));
     }
+    // Apply deferred edits only after all on_start callbacks finish.
+    for (auto& script : scripts_) script->apply_pending();
 }
 
 void SceneRuntime::stop() {
     scripts_.clear();
     errors_.clear();
     scene_.reset();
+    previous_input_ = {};
 }
 
 void SceneRuntime::tick(float delta_seconds, const RuntimeInput& input) {
@@ -189,13 +348,21 @@ void SceneRuntime::tick(float delta_seconds, const RuntimeInput& input) {
     delta_seconds = std::min(delta_seconds, 0.1f);
     for (auto& script : scripts_) {
         if (!script) continue;
+        const auto index = scene_->find_entity(script->entity_id);
+        if (!index) { script.reset(); continue; }
+        script->position = scene_->data["entities"][*index]["position"].get<std::array<double, 3>>();
+        script->position_changed = false;
         script->input = input;
         if (!script->call("on_update", delta_seconds)) {
             errors_.push_back(script->error());
             script.reset();
             continue;
         }
-        script->commit(scene_->data["entities"][script->entity_index]);
+        script->commit(scene_->data["entities"][*index]);
     }
+    // Entity array mutations are deferred so existing script indices are stable
+    // while callbacks execute. Spawned entities have no scripts by design.
+    for (auto& script : scripts_) if (script) script->apply_pending();
+    previous_input_ = input;
 }
 }
