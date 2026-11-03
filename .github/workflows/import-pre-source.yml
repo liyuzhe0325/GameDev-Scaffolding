@@ -1,0 +1,32 @@
+name: Import PRE source archive
+on:
+  push:
+    branches: [main]
+    paths:
+      - "PRE/.upload-ready"
+permissions:
+  contents: write
+jobs:
+  import-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Verify and extract PRE source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat PRE/.upload/chunk* | base64 -d > /tmp/pre-source.tar.xz
+          echo "1feaa841967fd4b8a2d25667bdae4fe39232780c75c194123d0ad740ff9097ec  /tmp/pre-source.tar.xz" | sha256sum -c -
+          tar -xJf /tmp/pre-source.tar.xz
+          test -f PRE/src/SceneDocument.cpp
+          test -f PRE/CMakeLists.txt
+          curl -fL --retry 3 "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h" -o PRE/third_party/stb/stb_image.h
+          test -s PRE/third_party/stb/stb_image.h
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PRE
+          git rm -r -f PRE/.upload PRE/.upload-ready
+          git commit -m "feat(PRE): import full v0.6.0 preview engine sources"
+          git push origin HEAD:main
