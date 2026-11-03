@@ -3,58 +3,14 @@
   "scene_id": "lighting_lab",
   "scene_name": "Lighting Laboratory",
   "render": {
-    "pixel_resolution": [
-      480,
-      270
-    ],
-    "clear_color": [
-      0.065,
-      0.092,
-      0.15,
-      1
-    ],
+    "pixel_resolution": [480, 270],
+    "clear_color": [0.065, 0.092, 0.15, 1.0],
     "pixel_policy": "hybrid"
   },
   "entities": [
-    {
-      "id": "camera_main",
-      "name": "Orthographic Camera",
-      "type": "camera",
-      "position": [
-        0,
-        1.5,
-        8
-      ]
-    },
-    {
-      "id": "wall_01",
-      "name": "Industrial Wall",
-      "type": "occluder",
-      "position": [
-        0,
-        0,
-        0
-      ]
-    },
-    {
-      "id": "light_key",
-      "name": "Amber Lamp",
-      "type": "light",
-      "position": [
-        2,
-        2,
-        1
-      ]
-    },
-    {
-      "id": "hero_01",
-      "name": "Pixel Hero",
-      "type": "sprite",
-      "position": [
-        0,
-        0.5,
-        0.2
-      ]
-    }
+    {"id": "camera_main", "name": "Orthographic Camera", "type": "camera", "position": [0.0, 1.5, 8.0]},
+    {"id": "wall_01", "name": "Industrial Wall", "type": "occluder", "position": [0.0, 0.0, 0.0]},
+    {"id": "light_key", "name": "Amber Lamp", "type": "light", "position": [2.0, 2.0, 1.0]},
+    {"id": "hero_01", "name": "Pixel Hero", "type": "sprite", "position": [0.0, 0.5, 0.2]}
   ]
 }

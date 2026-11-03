@@ -1,0 +1,13 @@
+{
+  "contract_version": 1,
+  "source": "scenes/lab.json",
+  "fields": [
+    {"path": "render.clear_color", "type": "vec4", "unit": "linear_rgb", "human_label": "Clear Color", "editable_by_human": true, "editable_by_ai_cli": false, "help": "RGB clears the GPU pixel target. Lua preview may override the color."},
+    {"path": "render.pixel_resolution", "type": "int2", "unit": "pixels", "minimum": [1, 1], "human_label": "Pixel Resolution", "editable_by_human": true, "editable_by_ai_cli": false, "help": "Offscreen target width and height. The current viewport supports up to 4096 per axis."},
+    {"path": "entities[].id", "type": "string", "human_label": "Stable ID", "immutable": true, "help": "Machine identity, not a display label."},
+    {"path": "entities[].name", "type": "string", "human_label": "Name", "editable_by_human": true, "editable_by_ai_cli": true},
+    {"path": "entities[].position", "type": "vec3", "unit": "world_units", "human_label": "Position XYZ", "editable_by_human": true, "editable_by_ai_cli": true, "help": "The sprite viewport uses sprite XY and the first camera's XY. Other positions are scene data."},
+    {"path": "entities[].sprite_image", "type": "string", "optional": true, "human_label": "Sprite image", "editable_by_human": true, "editable_by_ai_cli": false, "help": "Scene-relative assets/<filename>.png reference on sprite entities."}
+  ],
+  "error_shape": {"ok": false, "error": {"code": "PRE_SCENE_ERROR", "message": "human-readable explanation"}}
+}

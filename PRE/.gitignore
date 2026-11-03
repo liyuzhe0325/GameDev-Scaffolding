@@ -1,0 +1,17 @@
+build/
+cmake-build-*/
+out/
+.vs/
+CMakeUserPresets.json
+imgui.ini
+pre_language.ini
+__pycache__/
+*.pyc
+*.log
+*.exe
+*.dll
+*.lib
+*.obj
+*.pdb
+scenes/*.tmp
+.pre-save-*/

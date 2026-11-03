@@ -1,5 +1,7 @@
 #pragma once
+
 #include <string_view>
+
 namespace pre {
 inline bool is_script_reference(std::string_view ref) {
     if (!ref.starts_with("scripts/") || !ref.ends_with(".lua") || ref.size() <= 12 || ref.size() > 120)

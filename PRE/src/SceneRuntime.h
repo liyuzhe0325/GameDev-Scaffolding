@@ -1,9 +1,11 @@
 #pragma once
+
 #include "SceneDocument.h"
 #include <array>
 #include <memory>
 #include <string_view>
 #include <vector>
+
 namespace pre {
 struct RuntimeInput {
     static constexpr std::array<std::string_view, 31> keys = {
@@ -13,6 +15,7 @@ struct RuntimeInput {
     };
     std::array<bool, keys.size()> down{};
 };
+
 class SceneRuntime {
 public:
     SceneRuntime();
@@ -22,6 +25,7 @@ public:
     void tick(float delta_seconds, const RuntimeInput& input);
     const SceneDocument* scene() const { return scene_ ? &*scene_ : nullptr; }
     const std::vector<std::string>& errors() const { return errors_; }
+
 private:
     struct Script;
     std::optional<SceneDocument> scene_;

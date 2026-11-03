@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "scene_id": "runtime_demo",
+  "scene_name": "Script Runtime Test",
+  "render": {
+    "pixel_resolution": [480, 270],
+    "clear_color": [0.065, 0.092, 0.15, 1.0],
+    "pixel_policy": "hybrid"
+  },
+  "entities": [
+    {"id": "hero_01", "name": "Upper Sprite", "type": "sprite", "position": [-3, 2, 0], "script": "scripts/oscillate.lua"},
+    {"id": "sprite_02", "name": "Lower Sprite", "type": "sprite", "position": [3, -2, 0], "script": "scripts/keyboard.lua"}
+  ]
+}
