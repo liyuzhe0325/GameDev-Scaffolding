@@ -31,5 +31,6 @@ private:
     std::optional<SceneDocument> scene_;
     std::vector<std::unique_ptr<Script>> scripts_;
     std::vector<std::string> errors_;
+    RuntimeInput previous_input_{};
 };
 }
