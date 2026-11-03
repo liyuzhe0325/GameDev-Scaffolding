@@ -51,9 +51,9 @@ bool SceneDocument::validate(std::string& reason) const {
     if (!r.contains("clear_color") || !finite_vec(r["clear_color"], 4)) { reason = "render.clear_color must be vec4"; return false; }
     if (!r.contains("pixel_resolution") || !r["pixel_resolution"].is_array() || r["pixel_resolution"].size()!=2 ||
         !r["pixel_resolution"][0].is_number_integer() || !r["pixel_resolution"][1].is_number_integer() ||
-        r["pixel_resolution"][0].get<int>() <= 0 || r["pixel_resolution"][1].get<int>() <= 0 ||
-        r["pixel_resolution"][0].get<int>() > 4096 || r["pixel_resolution"][1].get<int>() > 4096) {
-        reason = "render.pixel_resolution requires two positive integers"; return false;
+        r["pixel_resolution"][0].get<double>() <= 0 || r["pixel_resolution"][1].get<double>() <= 0 ||
+        r["pixel_resolution"][0].get<double>() > 4096 || r["pixel_resolution"][1].get<double>() > 4096) {
+        reason = "render.pixel_resolution requires two integers from 1 to 4096"; return false;
     }
     std::unordered_set<std::string> ids;
     const std::unordered_set<std::string> allowed_types = {"camera", "occluder", "light", "sprite", "mesh", "effect"};
@@ -112,7 +112,7 @@ bool SceneDocument::validate(std::string& reason) const {
 
 bool SceneDocument::set_tile(TileCell cell, TileKind kind) {
     if (!valid_cell(cell) || !data.is_object()) return false;
-    const auto before = edit_depth_ == 0 ? data : nlohmann::json(); const bool was_dirty = dirty;
+    auto before = edit_depth_ == 0 ? data : nlohmann::json();
     if (!data.contains("tiles")) {
         if (kind == TileKind::empty) return false;
         data["tiles"] = nlohmann::json::array();
@@ -135,7 +135,7 @@ bool SceneDocument::set_tile(TileCell cell, TileKind kind) {
         }
     }
     dirty = true;
-    record_change(before, was_dirty);
+    record_change(std::move(before));
     return true;
 }
 
@@ -210,31 +210,29 @@ namespace pre {
 void SceneDocument::clear_history() {
     undo_.clear(); redo_.clear(); edit_start_.reset(); edit_depth_ = 0;
 }
-void SceneDocument::push_undo(Snapshot snapshot) {
+void SceneDocument::push_undo(nlohmann::json snapshot) {
     if (undo_.size() == history_limit_) undo_.erase(undo_.begin());
     undo_.push_back(std::move(snapshot));
     redo_.clear();
 }
-void SceneDocument::record_change(const nlohmann::json& before, bool was_dirty) {
-    if (before == data) return;
-    if (edit_depth_ > 0) return;
-    push_undo({before, was_dirty});
+void SceneDocument::record_change(nlohmann::json before) {
+    if (edit_depth_ == 0) push_undo(std::move(before));
 }
 void SceneDocument::begin_edit() {
-    if (edit_depth_++ == 0) edit_start_ = Snapshot{data, dirty};
+    if (edit_depth_++ == 0) edit_start_ = data;
 }
 void SceneDocument::end_edit() {
     if (edit_depth_ == 0) return;
     if (--edit_depth_ == 0) {
-        if (edit_start_ && edit_start_->data != data) push_undo(std::move(*edit_start_));
+        if (edit_start_ && *edit_start_ != data) push_undo(std::move(*edit_start_));
         edit_start_.reset();
     }
 }
 bool SceneDocument::undo() {
     if (edit_depth_ || undo_.empty()) return false;
     auto previous = std::move(undo_.back()); undo_.pop_back();
-    redo_.push_back({data, dirty});
-    data = std::move(previous.data);
+    redo_.push_back(std::move(data));
+    data = std::move(previous);
     dirty = true; // conservative: disk revision may have changed after this edit
     return true;
 }
@@ -242,8 +240,8 @@ bool SceneDocument::redo() {
     if (edit_depth_ || redo_.empty()) return false;
     auto next = std::move(redo_.back()); redo_.pop_back();
     if (undo_.size() == history_limit_) undo_.erase(undo_.begin());
-    undo_.push_back({data, dirty});
-    data = std::move(next.data);
+    undo_.push_back(std::move(data));
+    data = std::move(next);
     dirty = true;
     return true;
 }
@@ -258,19 +256,41 @@ bool SceneDocument::set_entity_field(const std::string& id, const std::string& f
         ((field == "script" || field == "sprite_image") && !value.is_string())) {
         error = "Invalid entity field value"; return false;
     }
-    if (data["entities"][*index].contains(field) && data["entities"][*index][field] == value) return false;
-    auto before = data; const bool was_dirty = dirty;
-    data["entities"][*index][field] = value;
+    return set_field(data["entities"][*index], field, value);
+}
+bool SceneDocument::set_render_field(const std::string& field, const nlohmann::json& value) {
+    if (field != "clear_color" && field != "pixel_resolution") {
+        error = "Unsupported render field";
+        return false;
+    }
+    const auto render = data.find("render");
+    if (render == data.end() || !render->is_object()) return false;
+    return set_field(*render, field, value);
+}
+bool SceneDocument::set_field(nlohmann::json& object, const std::string& field, const nlohmann::json& value) {
+    const auto existing = object.find(field);
+    if (existing != object.end() && *existing == value) return false;
+    const auto previous = existing != object.end() ? std::optional<nlohmann::json>(*existing) : std::nullopt;
+    auto before = edit_depth_ == 0 ? data : nlohmann::json();
+    object[field] = value;
     std::string reason;
-    if (!validate(reason)) { data = std::move(before); error = reason; return false; }
-    dirty = true; error.clear(); record_change(before, was_dirty); return true;
+    if (!validate(reason)) {
+        if (previous) object[field] = *previous;
+        else object.erase(field);
+        error = reason;
+        return false;
+    }
+    dirty = true;
+    error.clear();
+    record_change(std::move(before));
+    return true;
 }
 bool SceneDocument::erase_entity_field(const std::string& id, const std::string& field) {
     if (field != "script" && field != "sprite_image") { error = "Field cannot be removed"; return false; }
     auto index = find_entity(id);
     if (!index || !data["entities"][*index].contains(field)) return false;
-    auto before = data; const bool was_dirty = dirty;
+    auto before = edit_depth_ == 0 ? data : nlohmann::json();
     data["entities"][*index].erase(field); dirty = true; error.clear();
-    record_change(before, was_dirty); return true;
+    record_change(std::move(before)); return true;
 }
 }

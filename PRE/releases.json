@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.6.0",
+    "preview": true,
+    "date": "2026-11-03",
+    "title": "release.0.6.0.title",
+    "changes": ["release.0.6.0.history", "release.0.6.0.render"]
+  },
+  {
     "version": "0.5.0",
     "date": "2026-11-03",
     "title": "release.0.5.0.title",

@@ -2,6 +2,10 @@
 
 The editor displays the version and changes under **Help > Version and Release History**. Add new releases at the top of [releases.json](releases.json) and put the matching titles and change descriptions in the language catalogs. The first entry sets the compiled version. Build and test that version before creating its matching Git tag.
 
+## v0.6.0 Preview · 2026-11-03
+
+Adds undo and redo for tile strokes, entity fields, resolution, and background color. The editor records each continuous gesture as one step and applies changes in reverse order on undo.
+
 ## v0.5.0 · 2026-11-03
 
 Adds Play and Stop with an isolated scene instance, optional entity Lua scripts, and a script API for frame time, keyboard state, and entity position. The release includes a two-sprite runtime example.

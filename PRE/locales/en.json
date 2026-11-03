@@ -1,4 +1,10 @@
 {
+  "edit": "Edit",
+  "edit.undo": "Undo",
+  "edit.redo": "Redo",
+  "release.0.6.0.title": "Scene edit history preview",
+  "release.0.6.0.history": "Undo and redo tile strokes and entity edits. A continuous brush stroke is one step.",
+  "release.0.6.0.render": "Resolution and background color edits have their own steps in the same history.",
   "runtime.play": "Play",
   "runtime.stop": "Stop",
   "runtime.running": "Running scene instance",

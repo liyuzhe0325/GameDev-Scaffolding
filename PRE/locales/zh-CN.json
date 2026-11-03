@@ -1,4 +1,10 @@
 {
+  "edit": "编辑",
+  "edit.undo": "撤销",
+  "edit.redo": "重做",
+  "release.0.6.0.title": "场景编辑历史预览",
+  "release.0.6.0.history": "支持撤销和重做瓦片笔画与实体编辑，一次连续笔画记为一步。",
+  "release.0.6.0.render": "分辨率和背景颜色的修改也会作为独立步骤进入同一历史。",
   "runtime.play": "运行",
   "runtime.stop": "停止",
   "runtime.running": "场景实例运行中",

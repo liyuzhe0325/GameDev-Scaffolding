@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
     pre::LuaPreview lua_preview;
     auto pixels = std::make_unique<pre::PixelViewport>(gpu);
     auto update_title = [&] {
-        const std::string title = std::string(editor.window_title()) + " · v" + pre::version;
+        const std::string title = std::string(editor.window_title()) + " · v" + pre::display_version;
         SDL_SetWindowTitle(window, title.c_str());
     };
     bool title_is_chinese = editor.chinese();

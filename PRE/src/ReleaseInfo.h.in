@@ -2,6 +2,7 @@
 
 namespace pre {
 inline constexpr char version[] = "@PROJECT_VERSION@";
-inline constexpr char version_label[] = "PRE v@PROJECT_VERSION@";
+inline constexpr char display_version[] = "@PRE_DISPLAY_VERSION@";
+inline constexpr char version_label[] = "PRE v@PRE_DISPLAY_VERSION@";
 inline constexpr char release_history_json[] = R"PRE_NOTES(@PRE_RELEASE_HISTORY@)PRE_NOTES";
 }

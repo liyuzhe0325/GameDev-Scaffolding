@@ -33,9 +33,9 @@ private:
     std::string invalid_script_entity_;
     std::optional<TileKind> brush_;
     std::optional<TileCell> last_brush_cell_;
-    bool brush_edit_active_ = false;
-    bool name_edit_active_ = false;
-    bool position_edit_active_ = false;
+    enum class EditGesture { none, brush, name, position, clear_color, resolution };
+    EditGesture edit_gesture_ = EditGesture::none;
+    bool edit_gesture_seen_ = false;
     std::shared_ptr<SpriteDialog> sprite_dialog_;
     std::string sprite_import_error_;
     const char* tr(const char* key) const { return localization_.text(key, chinese_); }
@@ -44,6 +44,8 @@ private:
     void language_menu();
     void choose_sprite_png(const SceneDocument& scene);
     void finish_sprite_import(SceneDocument& scene, PixelViewport& pixels);
+    void track_edit(SceneDocument& scene, EditGesture gesture, bool active);
+    void finish_edit(SceneDocument& scene);
     void release_history();
     void viewport(SceneDocument& scene, PixelViewport& pixels, float frame_ms);
     void hierarchy(const SceneDocument& scene);

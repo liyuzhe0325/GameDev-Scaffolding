@@ -22,6 +22,7 @@ struct SceneDocument {
     // Shared, validated mutation API for editor tools and future agent bridge.
     bool set_entity_field(const std::string& id, const std::string& field, const nlohmann::json& value);
     bool erase_entity_field(const std::string& id, const std::string& field);
+    bool set_render_field(const std::string& field, const nlohmann::json& value);
     void begin_edit();
     void end_edit();
     bool undo();
@@ -31,12 +32,12 @@ struct SceneDocument {
     void clear_history();
 private:
     std::optional<std::string> loaded_revision_;
-    struct Snapshot { nlohmann::json data; bool dirty = false; };
     static constexpr std::size_t history_limit_ = 64;
-    std::vector<Snapshot> undo_, redo_;
-    std::optional<Snapshot> edit_start_;
+    std::vector<nlohmann::json> undo_, redo_;
+    std::optional<nlohmann::json> edit_start_;
     int edit_depth_ = 0;
-    void push_undo(Snapshot snapshot);
-    void record_change(const nlohmann::json& before, bool was_dirty);
+    void push_undo(nlohmann::json snapshot);
+    void record_change(nlohmann::json before);
+    bool set_field(nlohmann::json& object, const std::string& field, const nlohmann::json& value);
 };
 }
