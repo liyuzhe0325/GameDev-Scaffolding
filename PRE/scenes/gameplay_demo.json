@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "scene_id": "gameplay_demo",
+  "scene_name": "Lua Gameplay-First Example",
+  "render": {
+    "pixel_resolution": [
+      480,
+      270
+    ],
+    "clear_color": [
+      0.065,
+      0.092,
+      0.15,
+      1
+    ],
+    "pixel_policy": "hybrid"
+  },
+  "entities": [
+    {
+      "id": "player",
+      "name": "Player (WASD)",
+      "type": "sprite",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "script": "scripts/gameplay.lua"
+    }
+  ]
+}
